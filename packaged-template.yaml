@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'sam-app
+
+  Sample SAM Template for sam-app
+
+  '
+Globals:
+  Function:
+    Timeout: 60
+Outputs:
+  HelloWorldApi:
+    Description: API Gateway endpoint URL for Prod stage for Hello World function
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/
+  HelloWorldFunction:
+    Description: Hello World Lambda Function ARN
+    Value:
+      Fn::GetAtt:
+      - HelloWorldFunction
+      - Arn
+  HelloWorldFunctionIamRole:
+    Description: Implicit IAM Role created for Hello World function
+    Value:
+      Fn::GetAtt:
+      - HelloWorldFunctionRole
+      - Arn
+Parameters:
+  REGIONNAME:
+    Default: ap-southeast-1
+    Description: Default region for deployment.
+    Type: String
+  TABLENAME:
+    Default: TodoTable
+    Description: The DynamoDB table for storing Todo information.
+    Type: String
+Resources:
+  HelloWorldFunction:
+    Properties:
+      CodeUri: s3://vlim-aws-slash-sg-bucket/93a6b2dbeacf10a545e6cb7ee20e7a44
+      Events:
+        HelloWorld:
+          Properties:
+            Method: get
+            Path: /hello
+          Type: Api
+      Handler: app.lambda_handler
+      Runtime: python3.7
+    Type: AWS::Serverless::Function
+  TodoFunction:
+    Properties:
+      CodeUri: s3://vlim-aws-slash-sg-bucket/8cf07efe8253b9d458858136831887d9
+      Environment:
+        Variables:
+          REGION:
+            Ref: REGIONNAME
+          TABLE:
+            Ref: TABLENAME
+      Events:
+        Delete:
+          Properties:
+            Method: delete
+            Path: /todos/{id}
+          Type: Api
+        Get:
+          Properties:
+            Method: get
+            Path: /todos
+          Type: Api
+        Post:
+          Properties:
+            Method: post
+            Path: /todos
+          Type: Api
+        Put:
+          Properties:
+            Method: put
+            Path: /todos/{id}
+          Type: Api
+      Handler: app.lambda_handler
+      Policies: AmazonDynamoDBFullAccess
+      Runtime: python3.7
+    Type: AWS::Serverless::Function
+  TodoTable:
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      TableName:
+        Ref: TABLENAME
+    Type: AWS::DynamoDB::Table
+Transform: AWS::Serverless-2016-10-31
