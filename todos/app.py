@@ -20,32 +20,36 @@ class DecimalEncoder(json.JSONEncoder):  # This is a workaround for: http://bugs
         return super(DecimalEncoder, self).default(obj)
 
 
-
-
-
 def lambda_handler(event, context):
-    print("event:", json.dumps(event, indent=4, sort_keys=True))
-
-    print("context", context)
+    # print("event:", json.dumps(event, indent=4, sort_keys=True))
+    #
+    # print("context", context)
 
     # Get environment variables
     table_name = os.environ['TABLE']
     region = os.environ['REGION']
 
-    existing_tables = boto3.client('dynamodb').list_tables()['TableNames']
+    # existing_tables = boto3.client('dynamodb').list_tables()['TableNames']
     todo_table = boto3.resource('dynamodb', region_name=region).Table(table_name)
     # todo_table = boto3.resource('dynamodb', endpoint_url="http://localhost:8000/").Table(table_name)
 
+    path_methods = event.get('path').split('/')
+
     method = event.get('httpMethod', None)
     if method and method == 'GET':
-        return list(todo_table, event, context)
+        if path_methods[1] == 'todo-read':
+            return read(todo_table, event, context)
+
+        return list(todo_table)
 
     elif method and method == 'POST':
-        return create(todo_table, event, context)
+        return create(todo_table, event)
 
     elif method and method == 'PUT':
-        return update(todo_table, event, context)
+        return update(todo_table, event)
 
+    elif method and method == 'DELETE':
+        return delete(todo_table, event)
 
     return {
         "statusCode": 200,
@@ -55,10 +59,8 @@ def lambda_handler(event, context):
     }
 
 
-def list(table, event, context):
-
-
-    # fetch all todos from the database
+def list(table):
+    # fetch all to-do record from the database
     result = table.scan()
 
     # create a response
@@ -70,14 +72,13 @@ def list(table, event, context):
     return response
 
 
-def create(table, event, context):
+def create(table, event):
     data = json.loads(event['body'])
     if 'text' not in data:
         logging.error("Validation Failed")
         raise Exception("Couldn't create the todo item.")
 
     timestamp = str(datetime.utcnow().timestamp())
-
 
     item = {
         'id': str(uuid.uuid1()),
@@ -99,9 +100,8 @@ def create(table, event, context):
     return response
 
 
-def delete(table, event, context):
-
-    # delete the todo from the database
+def delete(table, event):
+    # delete the to-do from the database
     table.delete_item(
         Key={
             'id': event['pathParameters']['id']
@@ -115,7 +115,8 @@ def delete(table, event, context):
 
     return response
 
-def update(table, event, context):
+
+def update(table, event):
     data = json.loads(event['body'])
     if 'text' not in data or 'checked' not in data:
         logging.error("Validation Failed")
@@ -123,19 +124,18 @@ def update(table, event, context):
 
     timestamp = int(time.time() * 1000)
 
-
     # update the todos in the database
     result = table.update_item(
         Key={
             'id': event['pathParameters']['id']
         },
         ExpressionAttributeNames={
-          '#todo_text': 'text',
+            '#todo_text': 'text',
         },
         ExpressionAttributeValues={
-          ':text': data['text'],
-          ':checked': data['checked'],
-          ':updatedAt': timestamp,
+            ':text': data['text'],
+            ':checked': data['checked'],
+            ':updatedAt': timestamp,
         },
         UpdateExpression='SET #todo_text = :text, '
                          'checked = :checked, '
@@ -149,10 +149,11 @@ def update(table, event, context):
         "body": json.dumps(result['Attributes'],
                            cls=DecimalEncoder)
     }
+    return response
 
-def get(table, event, context):
 
-    # fetch todos from the database
+def read(table, event, context):
+    # fetch to-do from the database
     result = table.get_item(
         Key={
             'id': event['pathParameters']['id']

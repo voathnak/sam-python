@@ -55,7 +55,7 @@ Resources:
 
       Events:
         Post:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Type: Api
           Properties:
             Path: /todos
             Method: post
@@ -63,7 +63,7 @@ Resources:
         Read:
           Type: Api
           Properties:
-            Path: /todos-read/{id}
+            Path: /todo-read/{id}
             Method: get
 
         Get:
